@@ -4,7 +4,7 @@ from apyori import apriori
 
 
 # Fungsi untuk memproses dataset dan mencari aturan-asosiasi
-def find_association_rules(transactions, min_support, min_confidence):
+def find_association_rules(transactions, min_support, min_confidence, exclude_empty_lhs):
     transactions_list = []
     for _, transaction in transactions.iterrows():
         transaction_cleaned = transaction.dropna().astype(str).tolist()  # Menghapus NaN dan konversi ke list of strings
@@ -25,6 +25,10 @@ def find_association_rules(transactions, min_support, min_confidence):
                 confidence = round(ordered_stat.confidence * 100)  # Confidence dibulatkan
                 total_percent = round((support * ordered_stat.confidence) * 100,
                                       2)  # Total dibulatkan dan 2 digit desimal
+
+                if exclude_empty_lhs and not lhs:
+                    continue
+
                 rules.append((lhs, rhs, support, f"{confidence}%", f"{total_percent}%"))
 
         return rules
@@ -62,12 +66,19 @@ def main():
         transactions = pd.DataFrame(st.session_state['transactions'])
 
     if not transactions.empty:
+        # Menentukan nama kolom tabel
+        columns = [f"Item {i + 1}" for i in range(transactions.shape[1])]
+        transactions.columns = columns
+
         st.write("Transaksi yang dimasukkan:")
         st.table(transactions)
 
     # Input nilai minimum (φ) dan minimum confidence (%)
     min_support = st.number_input('Masukkan nilai minimum (φ)', min_value=0.0, max_value=1.0, step=0.01, value=0.2)
     min_confidence = st.number_input('Masukkan minimum confidence (%)', min_value=0, max_value=100, step=1, value=60)
+
+    # Checkbox untuk pengecualian aturan dengan LHS kosong
+    exclude_empty_lhs = st.checkbox("Kecualikan aturan dengan LHS kosong")
 
     # Tombol untuk memproses dan menampilkan aturan-asosiasi
     if st.button('Proses') and not transactions.empty:
@@ -76,7 +87,7 @@ def main():
             f"dan minimum confidence = {min_confidence}%\n")
 
         # Memanggil fungsi untuk menemukan aturan-asosiasi
-        rules = find_association_rules(transactions, min_support, min_confidence / 100)
+        rules = find_association_rules(transactions, min_support, min_confidence / 100, exclude_empty_lhs)
 
         # Menampilkan hasil aturan-asosiasi
         if len(rules) == 0:
@@ -91,6 +102,10 @@ def main():
             st.table(pd.DataFrame(table_data, columns=['Aturan', 'LHS -> RHS', 'Support', 'Confidence', 'Total']))
 
         st.markdown('<a href="/" target="_self">Reset</a>', unsafe_allow_html=True)
+
+    st.markdown(
+        '<br><p>Designed with ❤️ by <a href="https://www.fikrihandy.my.id" target="_self">Abdullah Fikri</a></p>',
+        unsafe_allow_html=True)
 
 
 if __name__ == '__main__':
